@@ -30,18 +30,17 @@
 ```
 
 3. Run:
-  Linux:
+  **Linux:**
 ``` bash
    ./build/task1
    ./build/task2
 ```
 
-  Windows:
+  **Windows:**
 ```bash
     .\build\task1.exe
     .\build\task2.exe
-    ```
+```
 
 4. Open browser at localhost:8081/ and localhost:8081/en_side 
-```
-```
+
