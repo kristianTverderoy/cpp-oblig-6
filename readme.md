@@ -8,7 +8,7 @@
 
 ## Setup
 
-1. Clone vcpkg into this project folder as submodule:
+1. Clone vcpkg into this project folder as submodule (may need to do git init first if this doesnt work):
 ```bash
    git submodule add  https://github.com/microsoft/vcpkg
    ./vcpkg/bootstrap-vcpkg.sh      # Linux/macOS
