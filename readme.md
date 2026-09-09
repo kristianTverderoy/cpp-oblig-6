@@ -19,14 +19,14 @@
 
    **Linux:**
 ```bash
-   cmake -S . -B build/linux -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
-   cmake --build build/linux
+   cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake
+   cmake --build build
 ```
 
    **Windows (MinGW):**
 ```bash
-   cmake -S . -B build/windows -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic
-   cmake --build build/windows
+   cmake -S . -B build -DCMAKE_TOOLCHAIN_FILE=./vcpkg/scripts/buildsystems/vcpkg.cmake -DVCPKG_TARGET_TRIPLET=x64-mingw-dynamic
+   cmake --build build
 ```
 
 3. Run:
@@ -40,5 +40,8 @@
 ```bash
     .\build\windows\task1.exe
     .\build\windows\task2.exe
+    ```
+
+4. Open browser at localhost:8081/ and localhost:8081/en_side 
 ```
 ```
