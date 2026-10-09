@@ -143,6 +143,19 @@ public:
     return '.';
   }
 
+  std::function<void(const Piece& piece, const std::string &from, const std::string& to)> onPieceMove;
+    
+  std::function<void(const Piece& piece, const std::string& at)> onPieceRemoved;
+
+  std::function<void(const Piece& piece)> onKingCaptured;
+
+  std::function<void(const Piece& piece, const std::string& from, const std::string& to)> onInvalidMove;
+
+  std::function<void(const std::string& from)> onNoPieceFrom;
+
+  std::function<void()> afterPieceMove;
+
+
   /// Move a chess piece if it is a valid move.
   /// Does not test for check or checkmate.
   bool move_piece(const std::string &from, const std::string &to) {
@@ -152,51 +165,101 @@ public:
     int to_y = stoi(string() + to[1]) - 1;
 
     auto &piece_from = squares[from_x][from_y];
-    if (piece_from) {
-      if (piece_from->valid_move(from_x, from_y, to_x, to_y)) {
-        cout << piece_from->type() << " is moving from " << from << " to " << to
-             << endl;
-        auto &piece_to = squares[to_x][to_y];
-        if (piece_to) {
-          if (piece_from->color != piece_to->color) {
-            cout << piece_to->type() << " is being removed from " << to << endl;
-            if (auto king = dynamic_cast<King *>(piece_to.get()))
-              cout << king->color_string() << " lost the game" << endl;
-          } else {
-            // piece in the from square has the same color as the piece in the
-            // to square
-            cout << "can not move " << piece_from->type() << " from " << from
-                 << " to " << to << endl;
-            return false;
-          }
-        }
-        piece_to = std::move(piece_from);
-        return true;
-      } else {
-        cout << "can not move " << piece_from->type() << " from " << from
-             << " to " << to << endl;
-        return false;
+    if (!piece_from) {
+      if (onNoPieceFrom) {
+        onNoPieceFrom(from);
       }
-    } else {
-      cout << "no piece at " << from << endl;
       return false;
     }
+      if (!piece_from->valid_move(from_x, from_y, to_x, to_y)) {
+        if (onInvalidMove){
+          onInvalidMove(*piece_from, from, to);
+        }
+          return false;
+      }
+
+      auto &pieceTo = squares[to_x][to_y];
+      if (pieceTo && piece_from->color == pieceTo->color) {
+        //For example a black piece tried to land on a different black piece.
+        if (onInvalidMove) {
+          onInvalidMove(*piece_from, from, to);
+        }
+          return false;
+      }
+
+    
+    if (onPieceMove) {
+      onPieceMove(*piece_from, from, to);
+    }
+
+    if (pieceTo){
+      if (onPieceRemoved){
+        onPieceRemoved(*pieceTo, to);
+      }
+      if (auto king = dynamic_cast<King *>(pieceTo.get())) {
+        if (onKingCaptured){
+          onKingCaptured(*king);
+        }
+      }
+    }
+
+    pieceTo = std::move(piece_from);
+    pieceTo->xCoordinate = to_x;
+    pieceTo->yCoordinate = to_y;
+
+    if (afterPieceMove){
+      afterPieceMove();
+    }
+
+    return true;
   }
 };
 
+
 class ChessBoardPrint {
 private:
-  const std::function<char(int, int)> afterPieceMove;
-  const ChessBoard board;
+  ChessBoard &board;
   const int boardXSize;
   const int boardYSize;
 
 public:
-  ChessBoardPrint(const ChessBoard &board_)
-      : afterPieceMove(
-            [&board_](int x, int y) { return board_.getPiece(x, y); }),
+  ChessBoardPrint(ChessBoard &board_) : 
+        board(board_),
         boardXSize(board_.squares.size()),
-        boardYSize(board_.squares[1].size()) {}
+        boardYSize(board_.squares[1].size()) {
+
+    board.onPieceMove = [](const ChessBoard::Piece &piece,
+                             const std::string &from, const std::string &to) {
+      cout << piece.type() << " is moving from " << from << " to " << to
+           << endl;
+    };
+
+    board.onPieceRemoved = [](const ChessBoard::Piece &piece,
+                                const std::string &at) {
+      cout << piece.type() << " is being removed from " << at << endl;
+    };
+
+    board.onKingCaptured = [](const ChessBoard::Piece &king) {
+      cout << king.color_string() << " lost the game" << endl;
+    };
+
+    board.onInvalidMove = [](const ChessBoard::Piece &piece,
+                               const std::string &from,
+                               const std::string &to) {
+      cout << "can not move " << piece.type() << " from " << from << " to "
+           << to << endl;
+    };
+
+    board.onNoPieceFrom = [](const std::string &from) {
+      cout << "no piece at " << from << endl;
+    };
+
+    board.afterPieceMove = [this]() { print(); };
+  }
+
+  ChessBoardPrint(const ChessBoardPrint &) = delete;
+  ChessBoardPrint &operator=(const ChessBoardPrint &) = delete;
+  
 
   void print() {
     string columns =
@@ -208,7 +271,7 @@ public:
         "21", "22", "23", "24", "25", "26", "27"}; // more rows incase the chess
                                                    // board has a lot of rows
                                                    // too.
-                                                   //
+    
     for (int c = 0; c < boardXSize + 1; c++) {
       cout << columns[c] << " ";
       if (c == boardXSize) {
@@ -221,7 +284,7 @@ public:
           // sets the row value before plotting the chess board
           cout << rows[(boardYSize - 1) - i] << " ";
         }
-        std::cout << afterPieceMove(j, i) << " ";
+        std::cout << board.getPiece(j, i) << " ";
         if (j == boardXSize - 1) {
           std::cout << "\n";
         }
@@ -257,21 +320,12 @@ int main() {
 
   cout << "A simulated game:" << endl;
   board.move_piece("e1", "e2");
-  printer.print();
   board.move_piece("g8", "h6");
-  printer.print();
   board.move_piece("b1", "c3");
-  printer.print();
   board.move_piece("h6", "g8");
-  printer.print();
   board.move_piece("c3", "d5");
-  printer.print();
   board.move_piece("g8", "h6");
-  printer.print();
   board.move_piece("d5", "f6");
-  printer.print();
   board.move_piece("h6", "g8");
-  printer.print();
   board.move_piece("f6", "e8");
-  printer.print();
 }
